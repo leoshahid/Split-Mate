@@ -1,0 +1,31 @@
+{
+  "name": "splitmate",
+  "version": "1.0.0",
+  "description": "A MERN-stack expense tracking and splitting application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "start-all": "./start-all.sh",
+    "stop-all": "./stop-all.sh",
+    "db:start": "brew services start mongodb/brew/mongodb-community",
+    "db:stop": "brew services stop mongodb/brew/mongodb-community",
+    "db:status": "brew services list | grep mongodb",
+    "db:restart": "brew services restart mongodb/brew/mongodb-community"
+  },
+  "keywords": [
+    "expense",
+    "splitting",
+    "mern",
+    "react",
+    "nodejs"
+  ],
+  "author": "SplitMate Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
