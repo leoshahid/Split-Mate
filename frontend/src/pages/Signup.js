@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { useTheme } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff, Email, Lock, Person, Phone, Cake, AttachMoney } from '@mui/icons-material';
 import {
@@ -164,7 +164,6 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const currencyOptions = [
         { value: 'PKR', label: 'Pakistani Rupee (PKR)' },
@@ -199,7 +198,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
             return false;
         }
 
-        if (formData.phone && !/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone)) {
+        if (formData.phone && !/^[+]?[1-9][\d]{0,15}$/.test(formData.phone)) {
             setError('Please enter a valid phone number');
             return false;
         }

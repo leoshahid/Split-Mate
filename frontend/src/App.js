@@ -10,7 +10,7 @@ import HistoryPage from './pages/History';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import { Button, Typography } from 'components';
+
 
 const AppContainer = styled(Box)(({ theme }) => ({
     display: 'flex',

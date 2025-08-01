@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { useTheme } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
 import {
@@ -140,7 +140,6 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
