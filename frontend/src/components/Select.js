@@ -34,6 +34,23 @@ const StyledFormControl = styled(FormControl)(({ theme }) => ({
     '& .MuiSelect-select': {
         fontSize: '1rem',
         padding: theme.spacing(1.5, 2),
+        lineHeight: 1.5,
+        display: 'flex',
+        alignItems: 'center',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+    },
+
+    '& .MuiSelect-icon': {
+        color: theme.palette.text.secondary,
+        fontSize: '1.2rem',
+    },
+
+    '& .MuiMenuItem-root': {
+        fontSize: '1rem',
+        lineHeight: 1.5,
+        padding: theme.spacing(1.5, 2),
     },
 }));
 
