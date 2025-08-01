@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 
@@ -9,16 +10,22 @@ const generateToken = (id) => {
     });
 };
 
+// Generate random token for email verification and password reset
+const generateRandomToken = () => {
+    return crypto.randomBytes(32).toString('hex');
+};
+
 // @desc    Register user
 // @route   POST /api/auth/signup
 // @access  Public
 const signup = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, phone, dateOfBirth, currency } = req.body;
 
         // Input sanitization
         const sanitizedName = name.trim().replace(/[<>]/g, '');
         const sanitizedEmail = email.toLowerCase().trim();
+        const sanitizedPhone = phone ? phone.trim() : undefined;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email: sanitizedEmail });
@@ -26,24 +33,40 @@ const signup = async (req, res) => {
             return res.status(400).json({ message: 'User already exists with this email' });
         }
 
+        // Generate email verification token
+        const emailVerificationToken = generateRandomToken();
+
         // Create user with sanitized data
-        const user = await User.create({
+        const userData = {
             name: sanitizedName,
             email: sanitizedEmail,
-            password
-        });
+            password,
+            emailVerificationToken
+        };
+
+        // Add optional fields if provided
+        if (sanitizedPhone) userData.phone = sanitizedPhone;
+        if (dateOfBirth) userData.dateOfBirth = new Date(dateOfBirth);
+        if (currency) userData.currency = currency;
+
+        const user = await User.create(userData);
 
         if (user) {
             const token = generateToken(user._id);
 
             res.status(201).json({
                 success: true,
-                message: 'User registered successfully',
+                message: 'User registered successfully. Please check your email to verify your account.',
                 data: {
                     user: {
                         id: user._id,
                         name: user.name,
-                        email: user.email
+                        email: user.email,
+                        phone: user.phone,
+                        currency: user.currency,
+                        emailVerified: user.emailVerified,
+                        avatar: user.avatar,
+                        preferences: user.preferences
                     },
                     token
                 }
@@ -72,11 +95,34 @@ const login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Check if account is locked
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+            return res.status(423).json({
+                message: 'Account is temporarily locked due to too many failed login attempts'
+            });
+        }
+
         // Check password
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            // Increment login attempts
+            user.loginAttempts += 1;
+
+            // Lock account after 5 failed attempts for 15 minutes
+            if (user.loginAttempts >= 5) {
+                user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+            }
+
+            await user.save();
+
             return res.status(401).json({ message: 'Invalid credentials' });
         }
+
+        // Reset login attempts on successful login
+        user.loginAttempts = 0;
+        user.lockUntil = undefined;
+        user.lastLogin = new Date();
+        await user.save();
 
         const token = generateToken(user._id);
 
@@ -87,7 +133,13 @@ const login = async (req, res) => {
                 user: {
                     id: user._id,
                     name: user.name,
-                    email: user.email
+                    email: user.email,
+                    phone: user.phone,
+                    currency: user.currency,
+                    emailVerified: user.emailVerified,
+                    avatar: user.avatar,
+                    preferences: user.preferences,
+                    lastLogin: user.lastLogin
                 },
                 token
             }
@@ -112,7 +164,14 @@ const getMe = async (req, res) => {
                 user: {
                     id: user._id,
                     name: user.name,
-                    email: user.email
+                    email: user.email,
+                    phone: user.phone,
+                    currency: user.currency,
+                    emailVerified: user.emailVerified,
+                    avatar: user.avatar,
+                    preferences: user.preferences,
+                    lastLogin: user.lastLogin,
+                    createdAt: user.createdAt
                 }
             }
         });
@@ -122,8 +181,104 @@ const getMe = async (req, res) => {
     }
 };
 
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+    try {
+        const { name, phone, dateOfBirth, currency, avatar } = req.body;
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update fields if provided
+        if (name) user.name = name.trim();
+        if (phone) user.phone = phone.trim();
+        if (dateOfBirth) user.dateOfBirth = new Date(dateOfBirth);
+        if (currency) user.currency = currency;
+        if (avatar) user.avatar = avatar;
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    currency: user.currency,
+                    emailVerified: user.emailVerified,
+                    avatar: user.avatar,
+                    preferences: user.preferences,
+                    lastLogin: user.lastLogin
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        const user = await User.findById(req.user.id).select('+password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Verify current password
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Current password is incorrect' });
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+const logout = async (req, res) => {
+    try {
+        // In a real application, you might want to blacklist the token
+        // For now, we'll just return a success message
+        res.json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     signup,
     login,
-    getMe
+    getMe,
+    updateProfile,
+    changePassword,
+    logout
 }; 

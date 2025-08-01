@@ -21,6 +21,65 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 6 characters'],
         select: false
+    },
+    avatar: {
+        type: String,
+        default: null
+    },
+    phone: {
+        type: String,
+        trim: true,
+        match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number']
+    },
+    dateOfBirth: {
+        type: Date
+    },
+    currency: {
+        type: String,
+        default: 'PKR',
+        enum: ['PKR', 'USD', 'EUR', 'GBP', 'INR']
+    },
+    timezone: {
+        type: String,
+        default: 'Asia/Karachi'
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    lastLogin: {
+        type: Date
+    },
+    loginAttempts: {
+        type: Number,
+        default: 0
+    },
+    lockUntil: {
+        type: Date
+    },
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String
+    },
+    resetPasswordToken: {
+        type: String
+    },
+    resetPasswordExpires: {
+        type: Date
+    },
+    preferences: {
+        notifications: {
+            email: { type: Boolean, default: true },
+            push: { type: Boolean, default: true },
+            sms: { type: Boolean, default: false }
+        },
+        privacy: {
+            profileVisibility: { type: String, default: 'friends', enum: ['public', 'friends', 'private'] },
+            showBalance: { type: Boolean, default: true }
+        }
     }
 }, {
     timestamps: true

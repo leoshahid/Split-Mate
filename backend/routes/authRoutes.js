@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { signup, login, getMe } = require('../controllers/authController');
+const { signup, login, getMe, updateProfile, changePassword, logout } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const {
     sanitizeInput,
@@ -39,6 +39,18 @@ const validateSignup = [
     body('password')
         .isLength({ min: 6 })
         .withMessage('Password must be at least 6 characters long'),
+    body('phone')
+        .optional()
+        .matches(/^[\+]?[1-9][\d]{0,15}$/)
+        .withMessage('Please provide a valid phone number'),
+    body('dateOfBirth')
+        .optional()
+        .isISO8601()
+        .withMessage('Please provide a valid date'),
+    body('currency')
+        .optional()
+        .isIn(['PKR', 'USD', 'EUR', 'GBP', 'INR'])
+        .withMessage('Please provide a valid currency'),
     handleValidationErrors
 ];
 
@@ -72,5 +84,10 @@ router.post('/login',
 );
 
 router.get('/me', protect, getMe);
+
+// Protected routes
+router.put('/profile', protect, updateProfile);
+router.put('/change-password', protect, changePassword);
+router.post('/logout', protect, logout);
 
 module.exports = router; 

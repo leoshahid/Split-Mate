@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, useTheme, useMediaQuery } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import Sidebar from './components/Layout/Sidebar';
@@ -8,6 +8,9 @@ import Groups from './pages/Groups';
 import Expenses from './pages/Expenses';
 import HistoryPage from './pages/History';
 import Profile from './pages/Profile';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import { Button, Typography } from 'components';
 
 const AppContainer = styled(Box)(({ theme }) => ({
     display: 'flex',
@@ -35,13 +38,27 @@ const Screen = styled(Box)(({ theme, active }) => ({
 function App() {
     const [activeScreen, setActiveScreen] = useState('dashboard');
     const [mobileOpen, setMobileOpen] = useState(false); // State for mobile sidebar
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    const [user] = useState({
+    const [user, setUser] = useState({
         name: 'Ali Ahmed',
         email: 'ali@example.com',
     });
+
+    // Check authentication status on component mount
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const userData = localStorage.getItem('user');
+
+        if (token && userData) {
+            setIsAuthenticated(true);
+            setUser(JSON.parse(userData));
+        } else {
+            setIsAuthenticated(false);
+        }
+    }, []);
 
     const screenTitles = {
         dashboard: 'Dashboard',
@@ -60,9 +77,41 @@ function App() {
     };
 
     const handleLogout = () => {
-        console.log('Logout clicked');
-        // Handle logout logic
+        // Clear authentication data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // Update state
+        setIsAuthenticated(false);
+        setUser({ name: '', email: '' });
     };
+
+    const handleLogin = (userData, token) => {
+        // Store authentication data
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        // Update state
+        setIsAuthenticated(true);
+        setUser(userData);
+    };
+
+    const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+
+    // Show login/signup if not authenticated
+    if (!isAuthenticated) {
+        return authMode === 'login' ? (
+            <Login
+                onLogin={handleLogin}
+                onSwitchToSignup={() => setAuthMode('signup')}
+            />
+        ) : (
+            <Signup
+                onSignup={handleLogin}
+                onSwitchToLogin={() => setAuthMode('login')}
+            />
+        );
+    }
 
     return (
         <AppContainer>
