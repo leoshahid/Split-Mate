@@ -4,7 +4,6 @@ import { styled } from '@mui/material/styles';
 import { Person, Close } from '@mui/icons-material';
 import {
     Box,
-    Grid,
     Typography,
     Card,
     Button,
