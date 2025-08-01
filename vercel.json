@@ -23,7 +23,7 @@
       "dest": "frontend/$1"
     }
   ],
-  "buildCommand": "cd frontend && DISABLE_ESLINT_PLUGIN=true npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install",
   "env": {
     "DISABLE_ESLINT_PLUGIN": "true",
