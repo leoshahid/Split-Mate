@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Typography, List, ListItem, ListItemAvatar, ListItemText, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Grid, Typography, List, ListItem, ListItemAvatar, useTheme, useMediaQuery } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
     TrendingUp,

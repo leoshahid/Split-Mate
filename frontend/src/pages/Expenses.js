@@ -8,7 +8,6 @@ import {
     FormControlLabel,
     Radio,
     Checkbox,
-    Divider,
     Card,
     Button,
     InputField,
@@ -285,10 +284,6 @@ const Expenses = () => {
     const [splitPreview, setSplitPreview] = useState([]);
 
     useEffect(() => {
-        updateSplitPreview();
-    }, [formData.amount, formData.selectedMembers, formData.splitType]);
-
-    const updateSplitPreview = () => {
         const amount = parseFloat(formData.amount) || 0;
         const memberCount = formData.selectedMembers.length;
 
@@ -302,7 +297,9 @@ const Expenses = () => {
         } else {
             setSplitPreview([]);
         }
-    };
+    }, [formData.amount, formData.selectedMembers, formData.splitType]);
+
+
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({

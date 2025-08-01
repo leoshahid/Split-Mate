@@ -12,7 +12,6 @@ import {
     Person,
     Settings,
     Logout,
-    ChevronRight,
     Menu as MenuIcon
 } from '@mui/icons-material';
 import IconButton from '../IconButton';

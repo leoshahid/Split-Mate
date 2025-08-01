@@ -8,7 +8,6 @@ import {
     History,
     Person,
     Receipt,
-    Menu,
     Close
 } from '@mui/icons-material';
 

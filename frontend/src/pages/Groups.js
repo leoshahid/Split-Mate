@@ -6,11 +6,6 @@ import {
     Box,
     Grid,
     Typography,
-    List,
-    ListItem,
-    ListItemAvatar,
-    ListItemText,
-    Divider,
     Card,
     Button,
     InputField,
@@ -66,12 +61,7 @@ const Form = styled(Box)(({ theme }) => ({
     },
 }));
 
-const FormRow = styled(Grid)(({ theme }) => ({
-    gap: theme.spacing(3),
-    [theme.breakpoints.down('sm')]: {
-        gap: theme.spacing(2),
-    },
-}));
+
 
 const FormGroup = styled(Box)(({ theme }) => ({
     display: 'flex',
