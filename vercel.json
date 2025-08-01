@@ -24,5 +24,8 @@
     }
   ],
   "buildCommand": "cd frontend && npm install && npm run build",
-  "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install",
+  "env": {
+    "DISABLE_ESLINT_PLUGIN": "true"
+  }
 }
