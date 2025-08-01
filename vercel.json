@@ -6,10 +6,10 @@
       "use": "@vercel/node"
     },
     {
-      "src": "frontend/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "frontend/build"
       }
     }
   ],
@@ -23,8 +23,8 @@
       "dest": "frontend/$1"
     }
   ],
-  "buildCommand": "cd frontend && echo 'DISABLE_ESLINT_PLUGIN=true' > .env && echo 'GENERATE_SOURCEMAP=false' >> .env && npm install && npm run build",
-  "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm run install-all",
   "env": {
     "DISABLE_ESLINT_PLUGIN": "true",
     "GENERATE_SOURCEMAP": "false"

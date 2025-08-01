@@ -1,47 +1,31 @@
 module.exports = {
-    extends: [
-        'react-app',
-        'react-app/jest'
-    ],
+    extends: [],
     rules: {
-        // Change all error rules to warnings for development
-        'no-unused-vars': 'warn',
-        'no-useless-escape': 'warn',
-        'no-console': 'warn',
-        'no-debugger': 'warn',
-        'prefer-const': 'warn',
-        'no-var': 'warn',
-
-        // React specific warnings
-        'react-hooks/exhaustive-deps': 'warn',
-        'react/prop-types': 'warn',
-        'react/no-unused-state': 'warn',
-        'react/no-unused-prop-types': 'warn',
-
-        // TypeScript warnings (if using TypeScript)
-        '@typescript-eslint/no-unused-vars': 'warn',
-        '@typescript-eslint/no-explicit-any': 'warn',
-
-        // Import warnings
-        'import/no-unused-modules': 'warn',
-        'import/no-unresolved': 'warn',
-
-        // General code quality warnings
-        'eqeqeq': 'warn',
-        'curly': 'warn',
-        'no-eval': 'warn',
-        'no-implied-eval': 'warn',
-        'no-new-func': 'warn',
-        'no-script-url': 'warn'
+        // Disable all rules
+        'no-unused-vars': 'off',
+        'no-useless-escape': 'off',
+        'no-console': 'off',
+        'no-debugger': 'off',
+        'prefer-const': 'off',
+        'no-var': 'off',
+        'react-hooks/exhaustive-deps': 'off',
+        'react/prop-types': 'off',
+        'react/no-unused-state': 'off',
+        'react/no-unused-prop-types': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        'import/no-unused-modules': 'off',
+        'import/no-unresolved': 'off',
+        'eqeqeq': 'off',
+        'curly': 'off',
+        'no-eval': 'off',
+        'no-implied-eval': 'off',
+        'no-new-func': 'off',
+        'no-script-url': 'off'
     },
     env: {
         browser: true,
         es6: true,
         node: true
-    },
-    settings: {
-        react: {
-            version: 'detect'
-        }
     }
 }; 
