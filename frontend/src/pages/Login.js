@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTheme } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
 import {
@@ -139,7 +138,6 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const theme = useTheme();
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({

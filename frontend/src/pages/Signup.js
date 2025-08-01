@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTheme } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff, Email, Lock, Person, Phone, Cake, AttachMoney } from '@mui/icons-material';
 import {
@@ -163,7 +162,6 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const theme = useTheme();
 
     const currencyOptions = [
         { value: 'PKR', label: 'Pakistani Rupee (PKR)' },
