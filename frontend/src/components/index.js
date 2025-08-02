@@ -28,4 +28,8 @@ export { default as ListItemIcon } from './ListItemIcon';
 export { default as ListItemText } from './ListItemText';
 
 // Utility Components
-export { default as Divider } from './Divider'; 
+export { default as Divider } from './Divider';
+
+// Authentication Components
+export { default as VerificationCodeInput } from './VerificationCodeInput';
+export { default as GoogleAuthButton } from './GoogleAuthButton'; 

@@ -1,6 +1,16 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { signup, login, getMe, updateProfile, changePassword, logout } = require('../controllers/authController');
+const {
+    signup,
+    login,
+    getMe,
+    updateProfile,
+    changePassword,
+    logout,
+    sendVerificationCode,
+    verifyEmail,
+    googleAuth
+} = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const {
     sanitizeInput,
@@ -65,6 +75,25 @@ const validateLogin = [
     handleValidationErrors
 ];
 
+const validateVerificationCode = [
+    body('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('Please provide a valid email'),
+    body('code')
+        .isLength({ min: 6, max: 6 })
+        .isNumeric()
+        .withMessage('Verification code must be 6 digits'),
+    handleValidationErrors
+];
+
+const validateGoogleAuth = [
+    body('idToken')
+        .notEmpty()
+        .withMessage('Google ID token is required'),
+    handleValidationErrors
+];
+
 // Routes with security middleware
 router.post('/signup',
     preventSensitiveDataLogging,
@@ -81,6 +110,29 @@ router.post('/login',
     validateEmail,
     validateLogin,
     login
+);
+
+// Email verification routes
+router.post('/send-verification',
+    preventSensitiveDataLogging,
+    sanitizeInput,
+    validateEmail,
+    sendVerificationCode
+);
+
+router.post('/verify-email',
+    preventSensitiveDataLogging,
+    sanitizeInput,
+    validateVerificationCode,
+    verifyEmail
+);
+
+// Google OAuth route
+router.post('/google',
+    preventSensitiveDataLogging,
+    sanitizeInput,
+    validateGoogleAuth,
+    googleAuth
 );
 
 router.get('/me', protect, getMe);

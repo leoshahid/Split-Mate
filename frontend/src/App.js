@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, useTheme, useMediaQuery } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import Sidebar from './components/Layout/Sidebar';
 import AppBar from './components/Layout/AppBar';
 import Dashboard from './pages/Dashboard';
@@ -10,6 +11,7 @@ import HistoryPage from './pages/History';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import api from './services/api';
 
 
 const AppContainer = styled(Box)(({ theme }) => ({
@@ -43,9 +45,12 @@ function App() {
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     const [user, setUser] = useState({
-        name: 'Ali Ahmed',
-        email: 'ali@example.com',
+        name: '',
+        email: '',
     });
+
+    // Google OAuth Client ID (you'll need to replace this with your actual client ID)
+    const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id-here';
 
     // Check authentication status on component mount
     useEffect(() => {
@@ -96,63 +101,97 @@ function App() {
         setUser(userData);
     };
 
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            const response = await api.post('/auth/google', {
+                idToken: credentialResponse.credential
+            });
+
+            // Store authentication data
+            localStorage.setItem('token', response.data.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+
+            // Update state
+            setIsAuthenticated(true);
+            setUser(response.data.data.user);
+        } catch (error) {
+            console.error('Google OAuth error:', error);
+            // Handle error appropriately
+        }
+    };
+
+    const handleGoogleError = () => {
+        console.error('Google OAuth failed');
+        // Handle error appropriately
+    };
+
     const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
 
     // Show login/signup if not authenticated
     if (!isAuthenticated) {
-        return authMode === 'login' ? (
-            <Login
-                onLogin={handleLogin}
-                onSwitchToSignup={() => setAuthMode('signup')}
-            />
-        ) : (
-            <Signup
-                onSignup={handleLogin}
-                onSwitchToLogin={() => setAuthMode('login')}
-            />
+        return (
+            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                {authMode === 'login' ? (
+                    <Login
+                        onLogin={handleLogin}
+                        onSwitchToSignup={() => setAuthMode('signup')}
+                        onGoogleSuccess={handleGoogleSuccess}
+                        onGoogleError={handleGoogleError}
+                    />
+                ) : (
+                    <Signup
+                        onSignup={handleLogin}
+                        onSwitchToLogin={() => setAuthMode('login')}
+                        onGoogleSuccess={handleGoogleSuccess}
+                        onGoogleError={handleGoogleError}
+                    />
+                )}
+            </GoogleOAuthProvider>
         );
     }
 
     return (
-        <AppContainer>
-            <Sidebar
-                activeScreen={activeScreen}
-                onScreenChange={handleScreenChange}
-                mobileOpen={mobileOpen}
-                onMobileToggle={handleMobileToggle}
-            />
-
-            <MainContent isMobile={isMobile}>
-                <AppBar
-                    pageTitle={screenTitles[activeScreen]}
-                    user={user}
-                    onLogout={handleLogout}
-                    onMobileMenuToggle={handleMobileToggle}
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <AppContainer>
+                <Sidebar
+                    activeScreen={activeScreen}
+                    onScreenChange={handleScreenChange}
+                    mobileOpen={mobileOpen}
+                    onMobileToggle={handleMobileToggle}
                 />
 
-                <ScreenContainer>
-                    <Screen active={activeScreen === 'dashboard'}>
-                        <Dashboard onScreenChange={handleScreenChange} />
-                    </Screen>
+                <MainContent isMobile={isMobile}>
+                    <AppBar
+                        pageTitle={screenTitles[activeScreen]}
+                        user={user}
+                        onLogout={handleLogout}
+                        onMobileMenuToggle={handleMobileToggle}
+                    />
 
-                    <Screen active={activeScreen === 'groups'}>
-                        <Groups />
-                    </Screen>
+                    <ScreenContainer>
+                        <Screen active={activeScreen === 'dashboard'}>
+                            <Dashboard onScreenChange={handleScreenChange} />
+                        </Screen>
 
-                    <Screen active={activeScreen === 'expenses'}>
-                        <Expenses />
-                    </Screen>
+                        <Screen active={activeScreen === 'groups'}>
+                            <Groups />
+                        </Screen>
 
-                    <Screen active={activeScreen === 'history'}>
-                        <HistoryPage />
-                    </Screen>
+                        <Screen active={activeScreen === 'expenses'}>
+                            <Expenses />
+                        </Screen>
 
-                    <Screen active={activeScreen === 'profile'}>
-                        <Profile onLogout={handleLogout} />
-                    </Screen>
-                </ScreenContainer>
-            </MainContent>
-        </AppContainer>
+                        <Screen active={activeScreen === 'history'}>
+                            <HistoryPage />
+                        </Screen>
+
+                        <Screen active={activeScreen === 'profile'}>
+                            <Profile onLogout={handleLogout} />
+                        </Screen>
+                    </ScreenContainer>
+                </MainContent>
+            </AppContainer>
+        </GoogleOAuthProvider>
     );
 }
 

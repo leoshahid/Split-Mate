@@ -8,9 +8,13 @@ import {
     InputField,
     Card,
     IconButton,
-    Select
+    Select,
+    VerificationCodeInput,
+    GoogleAuthButton,
+    Divider
 } from 'components';
 import api from '../services/api';
+import { GoogleLogin } from '@react-oauth/google';
 
 const SignupContainer = styled(Box)(({ theme }) => ({
     minHeight: '100vh',
@@ -251,7 +255,7 @@ const SwitchLink = styled('span')(({ theme }) => ({
     },
 }));
 
-const Signup = ({ onSignup, onSwitchToLogin }) => {
+const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -266,6 +270,15 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    // Email verification states
+    const [showEmailVerification, setShowEmailVerification] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [sendingCode, setSendingCode] = useState(false);
+    const [verifyingCode, setVerifyingCode] = useState(false);
+
+    // Google OAuth states
+    const [googleLoading, setGoogleLoading] = useState(false);
 
     const currencyOptions = [
         { value: 'PKR', label: 'Pakistani Rupee (₨)' },
@@ -359,6 +372,93 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
 
     const toggleConfirmPasswordVisibility = () => {
         setShowConfirmPassword(!showConfirmPassword);
+    };
+
+    // Email verification methods
+    const handleSendVerificationCode = async () => {
+        if (!formData.email.trim()) {
+            setError('Please enter your email address first');
+            return;
+        }
+
+        setSendingCode(true);
+        setError('');
+
+        try {
+            await api.post('/auth/send-verification', { email: formData.email });
+            setShowEmailVerification(true);
+            setSuccess('Verification code sent to your email!');
+        } catch (error) {
+            console.error('Send verification error:', error);
+            setError(error.response?.data?.message || 'Failed to send verification code');
+        } finally {
+            setSendingCode(false);
+        }
+    };
+
+    const handleVerifyEmail = async (code) => {
+        setVerifyingCode(true);
+        setError('');
+
+        try {
+            const response = await api.post('/auth/verify-email', {
+                email: formData.email,
+                code,
+                name: formData.name,
+                phone: formData.phone || undefined,
+                dateOfBirth: formData.dateOfBirth || undefined,
+                currency: formData.currency,
+            });
+
+            setSuccess('Email verified and account created successfully!');
+
+            // Store token and user data
+            localStorage.setItem('token', response.data.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+
+            // Call parent signup handler
+            onSignup(response.data.data.user, response.data.data.token);
+        } catch (error) {
+            console.error('Verify email error:', error);
+            setError(error.response?.data?.message || 'Failed to verify email');
+        } finally {
+            setVerifyingCode(false);
+        }
+    };
+
+    // Google OAuth method
+    const handleGoogleAuth = async () => {
+        setGoogleLoading(true);
+        setError('');
+
+        try {
+            // This will be handled by Google OAuth provider
+            // The actual implementation will be in the main App component
+            console.log('Google OAuth initiated');
+        } catch (error) {
+            console.error('Google auth error:', error);
+            setError('Google authentication failed');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = (credentialResponse) => {
+        setGoogleLoading(true);
+        setError('');
+
+        if (onGoogleSuccess) {
+            onGoogleSuccess(credentialResponse);
+        }
+    };
+
+    const handleGoogleError = () => {
+        setGoogleLoading(false);
+        setError('Google authentication failed');
+
+        if (onGoogleError) {
+            onGoogleError();
+        }
     };
 
     return (
@@ -505,15 +605,107 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
                     {error && <ErrorMessage>{error}</ErrorMessage>}
                     {success && <SuccessMessage>{success}</SuccessMessage>}
 
-                    <SubmitButton
-                        type="submit"
-                        variant="primary"
-                        fullWidth
-                        disabled={loading}
-                        startIcon={loading ? null : <PersonAdd />}
-                    >
-                        {loading ? 'Creating Your Account...' : 'Create Account & Start Splitting'}
-                    </SubmitButton>
+                    {/* Email Verification Section */}
+                    {showEmailVerification && (
+                        <Box sx={{ mt: 3, mb: 3 }}>
+                            <Typography variant="h6" textAlign="center" sx={{ mb: 2 }}>
+                                Enter Verification Code
+                            </Typography>
+                            <Typography variant="body2" textAlign="center" color="text.secondary" sx={{ mb: 3 }}>
+                                We've sent a 6-digit code to {formData.email}
+                            </Typography>
+                            <VerificationCodeInput
+                                onComplete={handleVerifyEmail}
+                                onCodeChange={setVerificationCode}
+                                error={!!error}
+                                helperText="Enter the 6-digit code from your email"
+                                disabled={verifyingCode}
+                            />
+                            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleSendVerificationCode}
+                                    disabled={sendingCode}
+                                    sx={{ flex: 1 }}
+                                >
+                                    {sendingCode ? 'Sending...' : 'Resend Code'}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setShowEmailVerification(false)}
+                                    sx={{ flex: 1 }}
+                                >
+                                    Back to Form
+                                </Button>
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* Authentication Options */}
+                    {!showEmailVerification && (
+                        <>
+                            <Box sx={{ mt: 3, mb: 3 }}>
+                                <Divider>
+                                    <Typography variant="body2" color="text.secondary">
+                                        or
+                                    </Typography>
+                                </Divider>
+                            </Box>
+
+                            {/* Google OAuth Button */}
+                            <Box sx={{ mb: 3 }}>
+                                <GoogleLogin
+                                    onSuccess={handleGoogleSuccess}
+                                    onError={handleGoogleError}
+                                    disabled={loading || googleLoading}
+                                    theme="outline"
+                                    size="large"
+                                    text="continue_with"
+                                    shape="rectangular"
+                                    width="100%"
+                                />
+                            </Box>
+
+                            {/* Email Verification Option */}
+                            <Box sx={{ mb: 3 }}>
+                                <Button
+                                    variant="outlined"
+                                    fullWidth
+                                    onClick={handleSendVerificationCode}
+                                    disabled={sendingCode || loading}
+                                    sx={{
+                                        height: '60px',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 600,
+                                        borderRadius: 2,
+                                    }}
+                                >
+                                    {sendingCode ? 'Sending Code...' : 'Sign up with Email Verification'}
+                                </Button>
+                            </Box>
+
+                            <Box sx={{ mt: 3, mb: 3 }}>
+                                <Divider>
+                                    <Typography variant="body2" color="text.secondary">
+                                        or use traditional signup
+                                    </Typography>
+                                </Divider>
+                            </Box>
+                        </>
+                    )}
+
+                    {/* Traditional Signup Button */}
+                    {!showEmailVerification && (
+                        <SubmitButton
+                            type="submit"
+                            variant="primary"
+                            fullWidth
+                            disabled={loading}
+                            startIcon={loading ? null : <PersonAdd />}
+                        >
+                            {loading ? 'Creating Your Account...' : 'Create Account & Start Splitting'}
+                        </SubmitButton>
+                    )}
                 </Form>
 
                 <SwitchText>

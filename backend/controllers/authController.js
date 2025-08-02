@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
+const { sendVerificationCode } = require('../services/emailService');
+const { generateVerificationCode, storeVerificationCode, getAndVerifyCode } = require('../services/verificationService');
+const { verifyGoogleToken, extractGoogleUserData } = require('../services/googleAuthService');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -274,11 +277,175 @@ const logout = async (req, res) => {
     }
 };
 
+// @desc    Send verification code
+// @route   POST /api/auth/send-verification
+// @access  Public
+const sendVerificationCodeHandler = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const sanitizedEmail = email.toLowerCase().trim();
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email: sanitizedEmail });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User already exists with this email' });
+        }
+
+        // Generate verification code
+        const code = generateVerificationCode();
+
+        // Store the code
+        storeVerificationCode(sanitizedEmail, code);
+
+        // Send email
+        const emailResult = await sendVerificationCode(sanitizedEmail, code);
+
+        if (emailResult.success) {
+            res.json({
+                success: true,
+                message: 'Verification code sent to your email'
+            });
+        } else {
+            res.status(500).json({ message: 'Failed to send verification code' });
+        }
+    } catch (error) {
+        console.error('Send verification code error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @desc    Verify email with code
+// @route   POST /api/auth/verify-email
+// @access  Public
+const verifyEmail = async (req, res) => {
+    try {
+        const { email, code, name, phone, dateOfBirth, currency } = req.body;
+        const sanitizedEmail = email.toLowerCase().trim();
+
+        // Verify the code
+        const verificationResult = getAndVerifyCode(sanitizedEmail, code);
+
+        if (!verificationResult.valid) {
+            return res.status(400).json({ message: verificationResult.message });
+        }
+
+        // Create user
+        const userData = {
+            email: sanitizedEmail,
+            name: name.trim(),
+            emailVerified: true,
+            authProvider: 'email'
+        };
+
+        // Add optional fields
+        if (phone) userData.phone = phone.trim();
+        if (dateOfBirth) userData.dateOfBirth = new Date(dateOfBirth);
+        if (currency) userData.currency = currency;
+
+        const user = await User.create(userData);
+        const token = generateToken(user._id);
+
+        res.status(201).json({
+            success: true,
+            message: 'Email verified and account created successfully',
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    currency: user.currency,
+                    emailVerified: user.emailVerified,
+                    avatar: user.avatar,
+                    preferences: user.preferences
+                },
+                token
+            }
+        });
+    } catch (error) {
+        console.error('Verify email error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @desc    Google OAuth authentication
+// @route   POST /api/auth/google
+// @access  Public
+const googleAuth = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        // Verify Google token
+        const googleResult = await verifyGoogleToken(idToken);
+
+        if (!googleResult.success) {
+            return res.status(400).json({ message: googleResult.error });
+        }
+
+        const googleUser = googleResult.user;
+        const userData = extractGoogleUserData(googleUser);
+
+        // Check if user exists
+        let user = await User.findOne({
+            $or: [
+                { email: userData.email },
+                { googleId: userData.googleId }
+            ]
+        });
+
+        if (user) {
+            // Update existing user with Google data if needed
+            if (!user.googleId) {
+                user.googleId = userData.googleId;
+                user.authProvider = 'google';
+                user.profilePicture = userData.profilePicture;
+                await user.save();
+            }
+        } else {
+            // Create new user
+            user = await User.create({
+                ...userData,
+                emailVerified: true // Google emails are pre-verified
+            });
+        }
+
+        // Update last login
+        user.lastLogin = new Date();
+        await user.save();
+
+        const token = generateToken(user._id);
+
+        res.json({
+            success: true,
+            message: 'Google authentication successful',
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    currency: user.currency,
+                    emailVerified: user.emailVerified,
+                    avatar: user.avatar || user.profilePicture,
+                    preferences: user.preferences
+                },
+                token
+            }
+        });
+    } catch (error) {
+        console.error('Google auth error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     signup,
     login,
     getMe,
     updateProfile,
     changePassword,
-    logout
+    logout,
+    sendVerificationCode: sendVerificationCodeHandler,
+    verifyEmail,
+    googleAuth
 }; 

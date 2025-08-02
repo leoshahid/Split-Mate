@@ -18,9 +18,22 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 6 characters'],
         select: false
+    },
+    // Google OAuth fields
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    authProvider: {
+        type: String,
+        enum: ['email', 'google'],
+        default: 'email'
+    },
+    profilePicture: {
+        type: String
     },
     avatar: {
         type: String,
@@ -87,7 +100,8 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+    // Only hash password if it's provided and modified
+    if (!this.isModified('password') || !this.password) return next();
 
     try {
         const salt = await bcrypt.genSalt(12);
@@ -96,6 +110,14 @@ userSchema.pre('save', async function (next) {
     } catch (error) {
         next(error);
     }
+});
+
+// Validate password is required for email auth
+userSchema.pre('validate', function (next) {
+    if (this.authProvider === 'email' && !this.password) {
+        this.invalidate('password', 'Password is required for email authentication');
+    }
+    next();
 });
 
 // Compare password method

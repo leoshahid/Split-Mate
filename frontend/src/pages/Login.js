@@ -8,9 +8,11 @@ import {
     InputField,
     Card,
     IconButton,
-    Divider
+    Divider,
+    GoogleAuthButton
 } from 'components';
 import api from '../services/api';
+import { GoogleLogin } from '@react-oauth/google';
 
 const LoginContainer = styled(Box)(({ theme }) => ({
     minHeight: '100vh',
@@ -228,7 +230,7 @@ const SwitchLink = styled('span')(({ theme }) => ({
     },
 }));
 
-const Login = ({ onLogin, onSwitchToSignup }) => {
+const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) => {
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -236,6 +238,7 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [googleLoading, setGoogleLoading] = useState(false);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -276,6 +279,40 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleGoogleAuth = async () => {
+        setGoogleLoading(true);
+        setError('');
+
+        try {
+            // This will be handled by Google OAuth provider
+            // The actual implementation will be in the main App component
+            console.log('Google OAuth initiated');
+        } catch (error) {
+            console.error('Google auth error:', error);
+            setError('Google authentication failed');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = (credentialResponse) => {
+        setGoogleLoading(true);
+        setError('');
+
+        if (onGoogleSuccess) {
+            onGoogleSuccess(credentialResponse);
+        }
+    };
+
+    const handleGoogleError = () => {
+        setGoogleLoading(false);
+        setError('Google authentication failed');
+
+        if (onGoogleError) {
+            onGoogleError();
+        }
     };
 
     return (
@@ -346,6 +383,29 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
                     >
                         {loading ? 'Signing In...' : 'Sign In & Continue'}
                     </SubmitButton>
+
+                    {/* Authentication Options */}
+                    <Box sx={{ mt: 3, mb: 3 }}>
+                        <Divider>
+                            <Typography variant="body2" color="text.secondary">
+                                or
+                            </Typography>
+                        </Divider>
+                    </Box>
+
+                    {/* Google OAuth Button */}
+                    <Box sx={{ mb: 3 }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                            disabled={loading || googleLoading}
+                            theme="outline"
+                            size="large"
+                            text="continue_with"
+                            shape="rectangular"
+                            width="100%"
+                        />
+                    </Box>
                 </Form>
 
                 <SwitchText>
