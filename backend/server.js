@@ -8,6 +8,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { authLimiter, apiLimiter } = require('./middleware/rateLimiter');
 
@@ -66,6 +67,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

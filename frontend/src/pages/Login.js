@@ -11,7 +11,7 @@ import {
     Divider,
     GoogleAuthButton
 } from 'components';
-import api from '../services/api';
+import { useLogin, useGoogleAuth } from '../hooks';
 import { GoogleLogin } from '@react-oauth/google';
 
 const LoginContainer = styled(Box)(({ theme }) => ({
@@ -240,6 +240,9 @@ const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) =>
     const [error, setError] = useState('');
     const [googleLoading, setGoogleLoading] = useState(false);
 
+    const { mutateAsync: login, isLoading: isLoginLoading } = useLogin();
+    const { mutateAsync: googleAuth, isLoading: isGoogleLoading } = useGoogleAuth();
+
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
             ...prev,
@@ -250,7 +253,6 @@ const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) =>
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
 
         try {
@@ -261,19 +263,17 @@ const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) =>
             }
 
             // Call login API
-            const response = await api.post('/auth/login', formData);
+            const response = await login(formData);
 
             // Store token and user data
-            localStorage.setItem('token', response.data.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            localStorage.setItem('token', response.token);
+            localStorage.setItem('user', JSON.stringify(response.user));
 
             // Call parent login handler
-            onLogin(response.data.data.user, response.data.data.token);
+            onLogin(response.user, response.token);
         } catch (error) {
             console.error('Login error:', error);
             setError(error.response?.data?.message || 'Network error. Please try again.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -378,10 +378,10 @@ const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) =>
                         type="submit"
                         variant="primary"
                         fullWidth
-                        disabled={loading}
-                        startIcon={loading ? null : <LoginIcon />}
+                        disabled={isLoginLoading}
+                        startIcon={isLoginLoading ? null : <LoginIcon />}
                     >
-                        {loading ? 'Signing In...' : 'Sign In & Continue'}
+                        {isLoginLoading ? 'Signing In...' : 'Sign In & Continue'}
                     </SubmitButton>
 
                     {/* Authentication Options */}
@@ -398,7 +398,7 @@ const Login = ({ onLogin, onSwitchToSignup, onGoogleSuccess, onGoogleError }) =>
                         <GoogleLogin
                             onSuccess={handleGoogleSuccess}
                             onError={handleGoogleError}
-                            disabled={loading || googleLoading}
+                            disabled={isLoginLoading || isGoogleLoading}
                             theme="outline"
                             size="large"
                             text="continue_with"

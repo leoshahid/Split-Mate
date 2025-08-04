@@ -1,26 +1,33 @@
-import React from 'react';
-import { Box, Grid, Typography, List, ListItem, ListItemAvatar, useTheme, useMediaQuery } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Grid, Typography, List, ListItem, ListItemAvatar, useTheme, useMediaQuery, Divider, IconButton, TextField, InputAdornment, Snackbar, Alert, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
-    TrendingUp,
-    TrendingDown,
-    Group,
+    Search,
     Add,
-    GroupAdd,
-    AccountBalanceWallet,
-    History,
-    Landscape,
-    Home,
-    Restaurant,
-    Hotel,
-    DirectionsCar
+    FilterList,
+    PersonAdd,
+    ExpandMore,
+    ExpandLess,
+    CheckCircle,
+    Cancel,
+    Send,
+    Group as GroupIcon,
+    Person,
+    MoreVert,
+    Visibility,
+    VisibilityOff
 } from '@mui/icons-material';
 import {
     Card,
     Button,
     Avatar,
-    Chip
+    Chip as CustomChip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from 'components';
+import api from '../services/api';
 
 const DashboardContainer = styled(Box)(({ theme }) => ({
     padding: theme.spacing(3),
@@ -29,414 +36,452 @@ const DashboardContainer = styled(Box)(({ theme }) => ({
     },
 }));
 
-const WelcomeSection = styled(Box)(({ theme }) => ({
-    marginBottom: theme.spacing(4),
-    [theme.breakpoints.down('sm')]: {
-        marginBottom: theme.spacing(3),
-    },
-}));
-
-const WelcomeTitle = styled(Typography)(({ theme }) => ({
-    fontSize: '1.875rem',
-    fontWeight: 700,
-    color: theme.palette.text.primary,
-    marginBottom: theme.spacing(1),
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1.5rem',
-    },
-}));
-
-const WelcomeSubtitle = styled(Typography)(({ theme }) => ({
-    fontSize: '1.125rem',
-    color: theme.palette.text.secondary,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1rem',
-    },
-}));
-
-const SectionHeader = styled(Box)(({ theme }) => ({
+const HeaderSection = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: theme.spacing(3),
     [theme.breakpoints.down('sm')]: {
         marginBottom: theme.spacing(2),
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: theme.spacing(2),
     },
 }));
 
-const SectionTitle = styled(Typography)(({ theme }) => ({
-    fontSize: '1.5rem',
-    fontWeight: 600,
-    color: theme.palette.text.primary,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1.25rem',
-    },
-}));
-
-const BalanceCard = styled(Card)(({ theme, variant }) => ({
+const OverallBalanceCard = styled(Card)(({ theme }) => ({
     padding: theme.spacing(3),
+    marginBottom: theme.spacing(3),
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     position: 'relative',
     overflow: 'hidden',
-    [theme.breakpoints.down('sm')]: {
-        padding: theme.spacing(2),
+    '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(255,255,255,0.1)',
+        borderRadius: theme.spacing(1),
     },
 }));
 
-const BalanceCardHeader = styled(Box)(({ theme }) => ({
+const BalanceHeader = styled(Box)(({ theme }) => ({
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: theme.spacing(2),
+    position: 'relative',
+    zIndex: 1,
 }));
 
-const BalanceCardTitle = styled(Typography)(({ theme }) => ({
+const BalanceTitle = styled(Typography)(({ theme }) => ({
     fontSize: '1.125rem',
     fontWeight: 500,
     opacity: 0.9,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1rem',
-    },
-}));
-
-const BalanceIcon = styled(Box)(({ theme }) => ({
-    fontSize: '2rem',
-    opacity: 0.8,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1.5rem',
-    },
 }));
 
 const BalanceAmount = styled(Typography)(({ theme }) => ({
-    fontSize: '2.25rem',
+    fontSize: '2rem',
     fontWeight: 700,
     marginBottom: theme.spacing(1),
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1.75rem',
-    },
+    position: 'relative',
+    zIndex: 1,
 }));
 
-const BalanceSubtitle = styled(Typography)(({ theme }) => ({
+const BalanceBreakdown = styled(Typography)(({ theme }) => ({
     fontSize: '0.875rem',
-    opacity: 0.9,
+    opacity: 0.8,
+    position: 'relative',
+    zIndex: 1,
 }));
 
-const ActionButton = styled(Button)(({ theme }) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: theme.spacing(1.5),
-    padding: theme.spacing(3),
-    minHeight: 120,
-    '& .MuiButton-startIcon': {
-        margin: 0,
-        fontSize: '2rem',
-    },
-    [theme.breakpoints.down('sm')]: {
-        padding: theme.spacing(2),
-        minHeight: 100,
-        '& .MuiButton-startIcon': {
-            fontSize: '1.5rem',
-        },
-    },
+const GroupsListCard = styled(Card)(({ theme }) => ({
+    padding: theme.spacing(0),
 }));
 
-const ActivityCard = styled(Card)(({ theme }) => ({
-    height: '100%',
-}));
-
-const CardHeader = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+const GroupsListHeader = styled(Box)(({ theme }) => ({
     padding: theme.spacing(2, 3),
     borderBottom: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('sm')]: {
-        padding: theme.spacing(1.5, 2),
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+}));
+
+const SearchBox = styled(TextField)(({ theme }) => ({
+    '& .MuiOutlinedInput-root': {
+        borderRadius: theme.spacing(2),
+        backgroundColor: theme.palette.background.paper,
     },
 }));
 
-const CardTitle = styled(Typography)(({ theme }) => ({
-    fontSize: '1.25rem',
-    fontWeight: 600,
-    color: theme.palette.text.primary,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '1.125rem',
-    },
-}));
-
-const TextButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-    padding: theme.spacing(0.5, 1.5),
-    minHeight: 'auto',
+const GroupItem = styled(ListItem)(({ theme }) => ({
+    padding: theme.spacing(2, 3),
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
     '&:hover': {
-        backgroundColor: theme.palette.primary.light + '20',
+        backgroundColor: theme.palette.action.hover,
     },
-}));
-
-const StyledListItem = styled(ListItem)(({ theme }) => ({
-    padding: theme.spacing(1.5, 0),
-    borderBottom: `1px solid ${theme.palette.grey[100]}`,
     '&:last-child': {
         borderBottom: 'none',
     },
-    [theme.breakpoints.down('sm')]: {
-        padding: theme.spacing(1, 0),
-    },
 }));
 
-const ListItemContent = styled(Box)(({ theme }) => ({
+const GroupInfo = styled(Box)(({ theme }) => ({
     flex: 1,
-    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
 }));
 
-const ListItemTitle = styled(Typography)(({ theme }) => ({
+const GroupHeader = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+}));
+
+const GroupName = styled(Typography)(({ theme }) => ({
     fontSize: '1rem',
     fontWeight: 600,
-    color: theme.palette.text.primary,
-    marginBottom: theme.spacing(0.5),
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '0.875rem',
-    },
 }));
 
-const ListItemSubtitle = styled(Typography)(({ theme }) => ({
-    fontSize: '0.875rem',
-    color: theme.palette.text.secondary,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '0.75rem',
-    },
-}));
-
-const ListItemAction = styled(Box)(({ theme }) => ({
-    flexShrink: 0,
-}));
-
-const Amount = styled(Typography)(({ theme }) => ({
+const GroupBalance = styled(Typography)(({ theme, variant }) => ({
+    fontSize: '1rem',
     fontWeight: 600,
-    color: theme.palette.text.primary,
-    [theme.breakpoints.down('sm')]: {
-        fontSize: '0.875rem',
-    },
+    color: variant === 'positive' ? theme.palette.success.main :
+        variant === 'negative' ? theme.palette.error.main :
+            theme.palette.text.primary,
+}));
+
+const BalanceDetails = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(0.5),
+}));
+
+const BalanceDetailItem = styled(Typography)(({ theme, variant }) => ({
+    fontSize: '0.875rem',
+    color: variant === 'positive' ? theme.palette.success.main :
+        variant === 'negative' ? theme.palette.error.main :
+            theme.palette.text.secondary,
+}));
+
+const SettledGroupsSection = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(2, 3),
+    borderTop: `1px solid ${theme.palette.divider}`,
+    backgroundColor: theme.palette.grey[50],
+}));
+
+const EmptyState = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: theme.spacing(6, 2),
+    color: theme.palette.text.secondary,
 }));
 
 const Dashboard = ({ onScreenChange }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    const balanceCards = [
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSettledGroups, setShowSettledGroups] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [groups, setGroups] = useState([]);
+    const [overallBalance, setOverallBalance] = useState({ total: 'PKR 0.00', breakdown: 'No balances' });
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+    // Mock data - replace with API calls
+    const mockGroups = [
         {
-            variant: 'balance-positive',
-            title: "You're Owed",
-            amount: "Rs. 2,500",
-            subtitle: "From 3 pending settlements",
-            icon: TrendingUp,
+            id: 1,
+            name: 'KBC Group',
+            icon: 'KG',
+            balance: {
+                total: -2082,
+                currency: 'PKR',
+                breakdown: [
+                    { name: 'Ali Z.', amount: -1075, type: 'owe' },
+                    { name: 'Jutt', amount: -1015, type: 'owe' },
+                    { name: 'Butt', amount: 8, type: 'owed' },
+                ]
+            }
         },
         {
-            variant: 'balance-negative',
-            title: "You Owe",
-            amount: "Rs. 0",
-            subtitle: "All settled up!",
-            icon: TrendingDown,
+            id: 2,
+            name: 'Psl Group',
+            icon: 'PG',
+            balance: {
+                total: 782.86,
+                currency: 'PKR',
+                breakdown: [
+                    { name: 'Asad', amount: 782.86, type: 'owed' },
+                ]
+            }
         },
         {
-            variant: 'balance-primary',
-            title: "Total Groups",
-            amount: "5",
-            subtitle: "Active expense groups",
-            icon: Group,
+            id: 3,
+            name: 'Taybi Ki Shadi Group',
+            icon: 'TS',
+            balance: {
+                total: 5470.67,
+                currency: 'PKR',
+                breakdown: [
+                    { name: 'Asad', amount: 3880, type: 'owed' },
+                    { name: 'Hamid N.', amount: 1590.67, type: 'owed' },
+                ]
+            }
         },
+        {
+            id: 4,
+            name: 'Non-group expenses',
+            icon: 'NG',
+            balance: {
+                total: 35113.34,
+                currency: 'PKR',
+                breakdown: [
+                    { name: 'Butt', amount: 19980, type: 'owed' },
+                    { name: 'Mian F.', amount: 8416.67, type: 'owed' },
+                    { name: 'Plus 2 more balances', amount: 0, type: 'info' },
+                ]
+            }
+        }
     ];
 
-    const quickActions = [
-        { label: 'Add Expense', icon: Add, variant: 'primary', action: 'expenses' },
-        { label: 'Create Group', icon: GroupAdd, variant: 'secondary', action: 'groups' },
-        { label: 'Settle Up', icon: AccountBalanceWallet, variant: 'success', action: 'settle' },
-        { label: 'View History', icon: History, variant: 'warning', action: 'history' },
+    const settledGroups = [
+        { id: 5, name: 'Office Lunch Group', balance: 0 },
+        { id: 6, name: 'Weekend Trip', balance: 0 },
+        // ... more settled groups
     ];
 
-    const recentGroups = [
-        {
-            title: 'Trip to Murree',
-            subtitle: '4 members • 3 expenses • 2 days ago',
-            icon: Landscape,
-            balance: '+Rs. 7,500',
-            balanceVariant: 'positive',
-        },
-        {
-            title: 'Monthly Rent',
-            subtitle: '3 members • 1 expense • 1 week ago',
-            icon: Home,
-            balance: 'Rs. 0',
-            balanceVariant: 'neutral',
-        },
-        {
-            title: 'Office Lunches',
-            subtitle: '6 members • 5 expenses • 3 days ago',
-            icon: Restaurant,
-            balance: '-Rs. 1,200',
-            balanceVariant: 'negative',
-        },
-    ];
+    useEffect(() => {
+        // Simulate API call
+        setTimeout(() => {
+            setGroups(mockGroups);
+            setOverallBalance({
+                total: 'PKR 39,284.87',
+                breakdown: '$400.00'
+            });
+            setLoading(false);
+        }, 1000);
+    }, []);
 
-    const recentTransactions = [
-        {
-            title: 'Dinner at Food Court',
-            subtitle: 'Paid by Sara • Trip to Murree • 2 hours ago',
-            icon: Restaurant,
-            amount: 'Rs. 4,000',
-        },
-        {
-            title: 'Hotel Booking',
-            subtitle: 'Paid by Usman • Trip to Murree • 1 day ago',
-            icon: Hotel,
-            amount: 'Rs. 10,000',
-        },
-        {
-            title: 'Transport',
-            subtitle: 'Paid by Ali • Trip to Murree • 1 day ago',
-            icon: DirectionsCar,
-            amount: 'Rs. 6,000',
-        },
-    ];
+    const filteredGroups = groups.filter(group =>
+        group.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    const handleQuickAction = (action) => {
-        if (action === 'settle') {
-            // Handle settle up action
-            console.log('Settle up clicked');
+    const formatBalance = (amount, currency) => {
+        return `${currency} ${Math.abs(amount).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+    };
+
+    const getBalanceText = (group) => {
+        if (group.balance.total > 0) {
+            return `you are owed ${formatBalance(group.balance.total, group.balance.currency)}`;
+        } else if (group.balance.total < 0) {
+            return `you owe ${formatBalance(group.balance.total, group.balance.currency)}`;
         } else {
-            onScreenChange(action);
+            return 'settled up';
         }
     };
 
+    const getBalanceVariant = (balance) => {
+        if (balance > 0) return 'positive';
+        if (balance < 0) return 'negative';
+        return 'neutral';
+    };
+
+    const handleGroupClick = (group) => {
+        // TODO: Navigate to group detail page
+        console.log('Opening group:', group);
+    };
+
+    const handleAddExpense = () => {
+        onScreenChange('expenses');
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
+    if (loading) {
+        return (
+            <DashboardContainer>
+                <Typography>Loading dashboard...</Typography>
+            </DashboardContainer>
+        );
+    }
+
     return (
         <DashboardContainer>
-            {/* Welcome Section */}
-            <WelcomeSection>
-                <WelcomeTitle>Welcome back, Ali! 👋</WelcomeTitle>
-                <WelcomeSubtitle>
-                    Here's what's happening with your expenses today
-                </WelcomeSubtitle>
-            </WelcomeSection>
+            {/* Header */}
+            <HeaderSection>
+                <Box>
+                    <Typography variant="h4" fontWeight={700}>
+                        Groups
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Manage your expense groups and balances
+                    </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <SearchBox
+                        placeholder="Search groups..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Search />
+                                </InputAdornment>
+                            ),
+                        }}
+                        size="small"
+                        sx={{ width: 300 }}
+                    />
+                    <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={handleAddExpense}
+                    >
+                        Add expense
+                    </Button>
+                </Box>
+            </HeaderSection>
 
-            {/* Balance Overview Cards */}
-            <Box sx={{ mb: 4 }}>
-                <Grid container spacing={isMobile ? 2 : 3}>
-                    {balanceCards.map((card, index) => {
-                        const IconComponent = card.icon;
-                        return (
-                            <Grid item xs={12} sm={6} md={4} key={index}>
-                                <BalanceCard variant={card.variant}>
-                                    <BalanceCardHeader>
-                                        <BalanceCardTitle>{card.title}</BalanceCardTitle>
-                                        <BalanceIcon>
-                                            <IconComponent />
-                                        </BalanceIcon>
-                                    </BalanceCardHeader>
-                                    <BalanceAmount>{card.amount}</BalanceAmount>
-                                    <BalanceSubtitle>{card.subtitle}</BalanceSubtitle>
-                                </BalanceCard>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </Box>
+            {/* Overall Balance */}
+            <OverallBalanceCard>
+                <BalanceHeader>
+                    <BalanceTitle>Overall, you are owed</BalanceTitle>
+                    <IconButton sx={{ color: 'white' }}>
+                        <FilterList />
+                    </IconButton>
+                </BalanceHeader>
+                <BalanceAmount>{overallBalance.total} +</BalanceAmount>
+                <BalanceBreakdown>{overallBalance.breakdown}</BalanceBreakdown>
+            </OverallBalanceCard>
 
-            {/* Quick Actions */}
-            <Box sx={{ mb: 4 }}>
-                <SectionHeader>
-                    <SectionTitle>Quick Actions</SectionTitle>
-                </SectionHeader>
-                <Grid container spacing={isMobile ? 1 : 2}>
-                    {quickActions.map((action, index) => {
-                        const IconComponent = action.icon;
-                        return (
-                            <Grid item xs={6} sm={6} md={3} key={index}>
-                                <ActionButton
-                                    variant={action.variant}
-                                    startIcon={<IconComponent />}
-                                    onClick={() => handleQuickAction(action.action)}
-                                    fullWidth
-                                >
-                                    {action.label}
-                                </ActionButton>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </Box>
+            {/* Groups List */}
+            <GroupsListCard>
+                <GroupsListHeader>
+                    <Typography variant="h6" fontWeight={600}>
+                        Groups & Balances
+                    </Typography>
+                </GroupsListHeader>
 
-            {/* Recent Activity */}
-            <Box>
-                <Grid container spacing={isMobile ? 2 : 3}>
-                    {/* Recent Groups */}
-                    <Grid item xs={12} lg={6}>
-                        <ActivityCard>
-                            <CardHeader>
-                                <CardTitle>Recent Groups</CardTitle>
-                                <TextButton variant="text" size="small">
-                                    View All
-                                </TextButton>
-                            </CardHeader>
-                            <List sx={{ p: isMobile ? 1.5 : 2 }}>
-                                {recentGroups.map((group, index) => {
-                                    const IconComponent = group.icon;
-                                    return (
-                                        <StyledListItem key={index}>
-                                            <ListItemAvatar>
-                                                <Avatar variant="primary" size="medium">
-                                                    <IconComponent />
-                                                </Avatar>
-                                            </ListItemAvatar>
-                                            <ListItemContent>
-                                                <ListItemTitle>{group.title}</ListItemTitle>
-                                                <ListItemSubtitle>{group.subtitle}</ListItemSubtitle>
-                                            </ListItemContent>
-                                            <ListItemAction>
-                                                <Chip
-                                                    label={group.balance}
-                                                    variant={group.balanceVariant}
-                                                />
-                                            </ListItemAction>
-                                        </StyledListItem>
-                                    );
-                                })}
-                            </List>
-                        </ActivityCard>
-                    </Grid>
+                {filteredGroups.length === 0 ? (
+                    <EmptyState>
+                        <GroupIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+                        <Typography variant="h6" gutterBottom>
+                            {searchQuery ? 'No groups found' : 'No groups yet'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 3 }}>
+                            {searchQuery ? 'Try adjusting your search terms' : 'Create your first group to start sharing expenses'}
+                        </Typography>
+                        {!searchQuery && (
+                            <Button
+                                variant="contained"
+                                startIcon={<Add />}
+                                onClick={handleAddExpense}
+                            >
+                                Create Your First Group
+                            </Button>
+                        )}
+                    </EmptyState>
+                ) : (
+                    <List>
+                        {filteredGroups.map((group) => (
+                            <GroupItem key={group.id} onClick={() => handleGroupClick(group)}>
+                                <ListItemAvatar>
+                                    <Avatar sx={{
+                                        backgroundColor: group.name === 'Non-group expenses' ? 'success.main' : 'primary.main',
+                                        color: 'white'
+                                    }}>
+                                        {group.icon}
+                                    </Avatar>
+                                </ListItemAvatar>
+                                <GroupInfo>
+                                    <GroupHeader>
+                                        <GroupName>{group.name}</GroupName>
+                                        <GroupBalance variant={getBalanceVariant(group.balance.total)}>
+                                            {getBalanceText(group)}
+                                        </GroupBalance>
+                                    </GroupHeader>
+                                    <BalanceDetails>
+                                        {group.balance.breakdown.map((item, index) => (
+                                            <BalanceDetailItem
+                                                key={index}
+                                                variant={getBalanceVariant(item.amount)}
+                                            >
+                                                {item.type === 'owe' ? `You owe ${item.name} ` :
+                                                    item.type === 'owed' ? `${item.name} owes you ` :
+                                                        item.name}
+                                                {item.amount !== 0 && formatBalance(item.amount, group.balance.currency)}
+                                            </BalanceDetailItem>
+                                        ))}
+                                    </BalanceDetails>
+                                </GroupInfo>
+                            </GroupItem>
+                        ))}
+                    </List>
+                )}
 
-                    {/* Recent Transactions */}
-                    <Grid item xs={12} lg={6}>
-                        <ActivityCard>
-                            <CardHeader>
-                                <CardTitle>Recent Transactions</CardTitle>
-                                <TextButton variant="text" size="small">
-                                    View All
-                                </TextButton>
-                            </CardHeader>
-                            <List sx={{ p: isMobile ? 1.5 : 2 }}>
-                                {recentTransactions.map((transaction, index) => {
-                                    const IconComponent = transaction.icon;
-                                    return (
-                                        <StyledListItem key={index}>
-                                            <ListItemAvatar>
-                                                <Avatar variant="primary" size="medium">
-                                                    <IconComponent />
-                                                </Avatar>
-                                            </ListItemAvatar>
-                                            <ListItemContent>
-                                                <ListItemTitle>{transaction.title}</ListItemTitle>
-                                                <ListItemSubtitle>{transaction.subtitle}</ListItemSubtitle>
-                                            </ListItemContent>
-                                            <ListItemAction>
-                                                <Amount>{transaction.amount}</Amount>
-                                            </ListItemAction>
-                                        </StyledListItem>
-                                    );
-                                })}
-                            </List>
-                        </ActivityCard>
-                    </Grid>
-                </Grid>
-            </Box>
+                {/* Settled Groups Section */}
+                <SettledGroupsSection>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Hiding groups you settled up with over 7 days ago
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        startIcon={showSettledGroups ? <VisibilityOff /> : <Visibility />}
+                        onClick={() => setShowSettledGroups(!showSettledGroups)}
+                        fullWidth
+                    >
+                        {showSettledGroups ? 'Hide' : 'Show'} {settledGroups.length} settled-up groups
+                    </Button>
+
+                    {showSettledGroups && (
+                        <List sx={{ mt: 2 }}>
+                            {settledGroups.map((group) => (
+                                <GroupItem key={group.id} onClick={() => handleGroupClick(group)}>
+                                    <ListItemAvatar>
+                                        <Avatar sx={{ backgroundColor: 'grey.300', color: 'grey.600' }}>
+                                            {group.name.split(' ').map(n => n[0]).join('')}
+                                        </Avatar>
+                                    </ListItemAvatar>
+                                    <GroupInfo>
+                                        <GroupHeader>
+                                            <GroupName>{group.name}</GroupName>
+                                            <Chip
+                                                label="Settled up"
+                                                color="success"
+                                                size="small"
+                                                icon={<CheckCircle />}
+                                            />
+                                        </GroupHeader>
+                                    </GroupInfo>
+                                </GroupItem>
+                            ))}
+                        </List>
+                    )}
+                </SettledGroupsSection>
+            </GroupsListCard>
+
+            {/* Snackbar */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </DashboardContainer>
     );
 };

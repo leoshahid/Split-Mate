@@ -30,6 +30,12 @@ export { default as ListItemText } from './ListItemText';
 // Utility Components
 export { default as Divider } from './Divider';
 
+// Dialog Components
+export { default as Dialog } from './Dialog';
+export { default as DialogTitle } from './DialogTitle';
+export { default as DialogContent } from './DialogContent';
+export { default as DialogActions } from './DialogActions';
+
 // Authentication Components
 export { default as VerificationCodeInput } from './VerificationCodeInput';
 export { default as GoogleAuthButton } from './GoogleAuthButton'; 

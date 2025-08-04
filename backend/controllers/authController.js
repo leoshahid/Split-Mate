@@ -21,6 +21,8 @@ const generateRandomToken = () => {
 // @desc    Register user
 // @route   POST /api/auth/signup
 // @access  Public
+// NOTE: Email verification is controlled by EMAIL_VERIFICATION_ENABLED flag
+// Set to false for development, true for production
 const signup = async (req, res) => {
     try {
         const { name, email, password, phone, dateOfBirth, currency } = req.body;
@@ -36,16 +38,25 @@ const signup = async (req, res) => {
             return res.status(400).json({ message: 'User already exists with this email' });
         }
 
-        // Generate email verification token
-        const emailVerificationToken = generateRandomToken();
+        // Check if email verification is enabled
+        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+
+        // Generate email verification token if verification is enabled
+        const emailVerificationToken = emailVerificationEnabled ? generateRandomToken() : undefined;
 
         // Create user with sanitized data
         const userData = {
             name: sanitizedName,
             email: sanitizedEmail,
             password,
-            emailVerificationToken
+            emailVerified: !emailVerificationEnabled, // Auto-verify if email verification is disabled
+            authProvider: 'email'
         };
+
+        // Add verification token if email verification is enabled
+        if (emailVerificationEnabled && emailVerificationToken) {
+            userData.emailVerificationToken = emailVerificationToken;
+        }
 
         // Add optional fields if provided
         if (sanitizedPhone) userData.phone = sanitizedPhone;
@@ -57,9 +68,13 @@ const signup = async (req, res) => {
         if (user) {
             const token = generateToken(user._id);
 
+            const message = emailVerificationEnabled
+                ? 'User registered successfully. Please check your email to verify your account.'
+                : 'User registered successfully!';
+
             res.status(201).json({
                 success: true,
-                message: 'User registered successfully. Please check your email to verify your account.',
+                message,
                 data: {
                     user: {
                         id: user._id,
@@ -285,6 +300,15 @@ const sendVerificationCodeHandler = async (req, res) => {
         const { email } = req.body;
         const sanitizedEmail = email.toLowerCase().trim();
 
+        // Check if email verification is enabled
+        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+
+        if (!emailVerificationEnabled) {
+            return res.status(400).json({
+                message: 'Email verification is currently disabled. Please use direct signup.'
+            });
+        }
+
         // Check if user already exists
         const existingUser = await User.findOne({ email: sanitizedEmail });
         if (existingUser) {
@@ -321,6 +345,15 @@ const verifyEmail = async (req, res) => {
     try {
         const { email, code, name, phone, dateOfBirth, currency } = req.body;
         const sanitizedEmail = email.toLowerCase().trim();
+
+        // Check if email verification is enabled
+        const emailVerificationEnabled = process.env.EMAIL_VERIFICATION_ENABLED === 'true';
+
+        if (!emailVerificationEnabled) {
+            return res.status(400).json({
+                message: 'Email verification is currently disabled. Please use direct signup.'
+            });
+        }
 
         // Verify the code
         const verificationResult = getAndVerifyCode(sanitizedEmail, code);

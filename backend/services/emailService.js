@@ -1,5 +1,10 @@
 const nodemailer = require('nodemailer');
 
+// Check if email configuration is available
+const isEmailConfigured = () => {
+    return process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD;
+};
+
 // Create transporter for Gmail (free tier)
 const createTransporter = () => {
     return nodemailer.createTransporter({
@@ -11,9 +16,30 @@ const createTransporter = () => {
     });
 };
 
+// Mock email service for development
+const sendMockEmail = async (email, code, type) => {
+    console.log('\n' + '='.repeat(60));
+    console.log(`📧 MOCK EMAIL SENT (${type.toUpperCase()})`);
+    console.log('='.repeat(60));
+    console.log(`📧 To: ${email}`);
+    console.log(`🔐 Verification Code: ${code}`);
+    console.log(`⏰ Expires in: 10 minutes`);
+    console.log('='.repeat(60));
+    console.log('💡 In production, this would be sent via Gmail');
+    console.log('💡 To set up real emails, configure EMAIL_USER and EMAIL_APP_PASSWORD in .env');
+    console.log('='.repeat(60) + '\n');
+
+    return { success: true, messageId: 'mock-message-id' };
+};
+
 // Send verification code email
 const sendVerificationCode = async (email, code) => {
     try {
+        // Use mock service if email is not configured
+        if (!isEmailConfigured()) {
+            return await sendMockEmail(email, code, 'verification');
+        }
+
         const transporter = createTransporter();
 
         const mailOptions = {
@@ -63,6 +89,11 @@ const sendVerificationCode = async (email, code) => {
 // Send password reset email
 const sendPasswordResetCode = async (email, code) => {
     try {
+        // Use mock service if email is not configured
+        if (!isEmailConfigured()) {
+            return await sendMockEmail(email, code, 'password-reset');
+        }
+
         const transporter = createTransporter();
 
         const mailOptions = {

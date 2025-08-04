@@ -13,7 +13,7 @@ import {
     GoogleAuthButton,
     Divider
 } from 'components';
-import api from '../services/api';
+import { useSendVerificationCode, useVerifyEmail, useGoogleAuth } from '../hooks';
 import { GoogleLogin } from '@react-oauth/google';
 
 const SignupContainer = styled(Box)(({ theme }) => ({
@@ -255,6 +255,7 @@ const SwitchLink = styled('span')(({ theme }) => ({
     },
 }));
 
+
 const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) => {
     const [formData, setFormData] = useState({
         name: '',
@@ -267,18 +268,17 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
     });
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
     // Email verification states
     const [showEmailVerification, setShowEmailVerification] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
-    const [sendingCode, setSendingCode] = useState(false);
-    const [verifyingCode, setVerifyingCode] = useState(false);
 
-    // Google OAuth states
-    const [googleLoading, setGoogleLoading] = useState(false);
+    // React Query hooks
+    const { mutateAsync: sendVerificationCode, isLoading: isSendingCode } = useSendVerificationCode();
+    const { mutateAsync: verifyEmail, isLoading: isVerifyingEmail } = useVerifyEmail();
+    const { mutateAsync: googleAuth, isLoading: isGoogleLoading } = useGoogleAuth();
 
     const currencyOptions = [
         { value: 'PKR', label: 'Pakistani Rupee (₨)' },
@@ -327,81 +327,58 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
         setSuccess('');
 
         try {
             if (!validateForm()) {
-                setLoading(false);
                 return;
             }
 
-            // Prepare data for API (remove confirmPassword)
-            const signupData = {
-                name: formData.name,
-                email: formData.email,
-                password: formData.password,
-                phone: formData.phone || undefined,
-                dateOfBirth: formData.dateOfBirth || undefined,
-                currency: formData.currency,
-            };
+            // First, try to send verification code
+            // If email verification is disabled on backend, fall back to direct signup
+            try {
+                await sendVerificationCode({ email: formData.email });
 
-            // Call signup API
-            const response = await api.post('/auth/signup', signupData);
+                // Show verification code input
+                setShowEmailVerification(true);
+                setSuccess('Verification code sent to your email! Please enter it below.');
+            } catch (verificationError) {
+                // If email verification is disabled, fall back to direct signup
+                if (verificationError.response?.data?.message?.includes('disabled')) {
+                    // Direct signup without email verification
+                    const response = await verifyEmail({
+                        email: formData.email,
+                        code: 'direct-signup', // Special code for direct signup
+                        name: formData.name,
+                        phone: formData.phone || undefined,
+                        dateOfBirth: formData.dateOfBirth || undefined,
+                        currency: formData.currency,
+                    });
 
-            setSuccess('Account created successfully! Please check your email to verify your account.');
+                    setSuccess('Account created successfully!');
 
-            // Store token and user data
-            localStorage.setItem('token', response.data.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+                    // Store token and user data
+                    localStorage.setItem('token', response.token);
+                    localStorage.setItem('user', JSON.stringify(response.user));
 
-            // Call parent signup handler
-            onSignup(response.data.data.user, response.data.data.token);
+                    // Call parent signup handler
+                    onSignup(response.user, response.token);
+                } else {
+                    throw verificationError;
+                }
+            }
         } catch (error) {
             console.error('Signup error:', error);
-            setError(error.response?.data?.message || 'Network error. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
-    };
-
-    const toggleConfirmPasswordVisibility = () => {
-        setShowConfirmPassword(!showConfirmPassword);
-    };
-
-    // Email verification methods
-    const handleSendVerificationCode = async () => {
-        if (!formData.email.trim()) {
-            setError('Please enter your email address first');
-            return;
-        }
-
-        setSendingCode(true);
-        setError('');
-
-        try {
-            await api.post('/auth/send-verification', { email: formData.email });
-            setShowEmailVerification(true);
-            setSuccess('Verification code sent to your email!');
-        } catch (error) {
-            console.error('Send verification error:', error);
-            setError(error.response?.data?.message || 'Failed to send verification code');
-        } finally {
-            setSendingCode(false);
+            setError(error.response?.data?.message || 'Failed to create account. Please try again.');
         }
     };
 
     const handleVerifyEmail = async (code) => {
-        setVerifyingCode(true);
         setError('');
 
         try {
-            const response = await api.post('/auth/verify-email', {
+            const response = await verifyEmail({
                 email: formData.email,
                 code,
                 name: formData.name,
@@ -413,22 +390,29 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
             setSuccess('Email verified and account created successfully!');
 
             // Store token and user data
-            localStorage.setItem('token', response.data.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            localStorage.setItem('token', response.token);
+            localStorage.setItem('user', JSON.stringify(response.user));
 
             // Call parent signup handler
-            onSignup(response.data.data.user, response.data.data.token);
+            onSignup(response.user, response.token);
         } catch (error) {
             console.error('Verify email error:', error);
             setError(error.response?.data?.message || 'Failed to verify email');
-        } finally {
-            setVerifyingCode(false);
         }
     };
 
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const toggleConfirmPasswordVisibility = () => {
+        setShowConfirmPassword(!showConfirmPassword);
+    };
+
+
+
     // Google OAuth method
     const handleGoogleAuth = async () => {
-        setGoogleLoading(true);
         setError('');
 
         try {
@@ -438,13 +422,10 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
         } catch (error) {
             console.error('Google auth error:', error);
             setError('Google authentication failed');
-        } finally {
-            setGoogleLoading(false);
         }
     };
 
     const handleGoogleSuccess = (credentialResponse) => {
-        setGoogleLoading(true);
         setError('');
 
         if (onGoogleSuccess) {
@@ -453,7 +434,6 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
     };
 
     const handleGoogleError = () => {
-        setGoogleLoading(false);
         setError('Google authentication failed');
 
         if (onGoogleError) {
@@ -482,6 +462,28 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
                         </FeatureItem>
                     </FeaturesSection>
                 </HeaderSection>
+
+                {/* Google OAuth Button - At the top for prominence */}
+                <Box sx={{ mt: 3, mb: 3 }}>
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        disabled={isGoogleLoading}
+                        theme="outline"
+                        size="large"
+                        text="continue_with"
+                        shape="rectangular"
+                        width="100%"
+                    />
+                </Box>
+
+                <Box sx={{ mt: 3, mb: 3 }}>
+                    <Divider>
+                        <Typography variant="body2" color="text.secondary">
+                            or sign up with email
+                        </Typography>
+                    </Divider>
+                </Box>
 
                 <Form component="form" onSubmit={handleSubmit}>
                     <FormRow>
@@ -619,17 +621,9 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
                                 onCodeChange={setVerificationCode}
                                 error={!!error}
                                 helperText="Enter the 6-digit code from your email"
-                                disabled={verifyingCode}
+                                disabled={isVerifyingEmail}
                             />
                             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                                <Button
-                                    variant="outlined"
-                                    onClick={handleSendVerificationCode}
-                                    disabled={sendingCode}
-                                    sx={{ flex: 1 }}
-                                >
-                                    {sendingCode ? 'Sending...' : 'Resend Code'}
-                                </Button>
                                 <Button
                                     variant="outlined"
                                     onClick={() => setShowEmailVerification(false)}
@@ -637,73 +631,28 @@ const Signup = ({ onSignup, onSwitchToLogin, onGoogleSuccess, onGoogleError }) =
                                 >
                                     Back to Form
                                 </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleSubmit}
+                                    disabled={isSendingCode}
+                                    sx={{ flex: 1 }}
+                                >
+                                    {isSendingCode ? 'Sending...' : 'Resend Code'}
+                                </Button>
                             </Box>
                         </Box>
                     )}
 
-                    {/* Authentication Options */}
-                    {!showEmailVerification && (
-                        <>
-                            <Box sx={{ mt: 3, mb: 3 }}>
-                                <Divider>
-                                    <Typography variant="body2" color="text.secondary">
-                                        or
-                                    </Typography>
-                                </Divider>
-                            </Box>
-
-                            {/* Google OAuth Button */}
-                            <Box sx={{ mb: 3 }}>
-                                <GoogleLogin
-                                    onSuccess={handleGoogleSuccess}
-                                    onError={handleGoogleError}
-                                    disabled={loading || googleLoading}
-                                    theme="outline"
-                                    size="large"
-                                    text="continue_with"
-                                    shape="rectangular"
-                                    width="100%"
-                                />
-                            </Box>
-
-                            {/* Email Verification Option */}
-                            <Box sx={{ mb: 3 }}>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    onClick={handleSendVerificationCode}
-                                    disabled={sendingCode || loading}
-                                    sx={{
-                                        height: '60px',
-                                        fontSize: '1.1rem',
-                                        fontWeight: 600,
-                                        borderRadius: 2,
-                                    }}
-                                >
-                                    {sendingCode ? 'Sending Code...' : 'Sign up with Email Verification'}
-                                </Button>
-                            </Box>
-
-                            <Box sx={{ mt: 3, mb: 3 }}>
-                                <Divider>
-                                    <Typography variant="body2" color="text.secondary">
-                                        or use traditional signup
-                                    </Typography>
-                                </Divider>
-                            </Box>
-                        </>
-                    )}
-
-                    {/* Traditional Signup Button */}
+                    {/* Signup Button - Email verification happens automatically */}
                     {!showEmailVerification && (
                         <SubmitButton
                             type="submit"
                             variant="primary"
                             fullWidth
-                            disabled={loading}
-                            startIcon={loading ? null : <PersonAdd />}
+                            disabled={isSendingCode}
+                            startIcon={isSendingCode ? null : <PersonAdd />}
                         >
-                            {loading ? 'Creating Your Account...' : 'Create Account & Start Splitting'}
+                            {isSendingCode ? 'Creating Your Account...' : 'Create Account & Start Splitting'}
                         </SubmitButton>
                     )}
                 </Form>
