@@ -38,6 +38,126 @@ const Screen = styled(Box)(({ theme, active }) => ({
     display: active ? 'block' : 'none',
 }));
 
+// Separate component that uses the hook inside QueryProvider
+const AuthenticatedApp = ({ user, onLogout, onScreenChange, activeScreen, mobileOpen, onMobileToggle, isMobile, screenTitles }) => {
+    const { mutateAsync: googleAuth } = useGoogleAuth();
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            const response = await googleAuth({
+                idToken: credentialResponse.credential
+            });
+
+            // Store authentication data
+            localStorage.setItem('token', response.token);
+            localStorage.setItem('user', JSON.stringify(response.user));
+
+            // Update state - this will be handled by parent component
+            window.location.reload(); // Simple way to refresh the app state
+        } catch (error) {
+            console.error('Google OAuth error:', error);
+            // Handle error appropriately
+        }
+    };
+
+    const handleGoogleError = () => {
+        console.error('Google OAuth failed');
+        // Handle error appropriately
+    };
+
+    return (
+        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id-here'}>
+            <AppContainer>
+                <Sidebar
+                    activeScreen={activeScreen}
+                    onScreenChange={onScreenChange}
+                    mobileOpen={mobileOpen}
+                    onMobileToggle={onMobileToggle}
+                />
+
+                <MainContent isMobile={isMobile}>
+                    <AppBar
+                        pageTitle={screenTitles[activeScreen]}
+                        user={user}
+                        onLogout={onLogout}
+                        onMobileMenuToggle={onMobileToggle}
+                    />
+
+                    <ScreenContainer>
+                        <Screen active={activeScreen === 'dashboard'}>
+                            <Dashboard onScreenChange={onScreenChange} />
+                        </Screen>
+
+                        <Screen active={activeScreen === 'groups'}>
+                            <Groups />
+                        </Screen>
+
+                        <Screen active={activeScreen === 'expenses'}>
+                            <Expenses />
+                        </Screen>
+
+                        <Screen active={activeScreen === 'history'}>
+                            <HistoryPage />
+                        </Screen>
+
+                        <Screen active={activeScreen === 'profile'}>
+                            <Profile onLogout={onLogout} />
+                        </Screen>
+                    </ScreenContainer>
+                </MainContent>
+            </AppContainer>
+        </GoogleOAuthProvider>
+    );
+};
+
+// Separate component for auth screens that uses the hook inside QueryProvider
+const AuthScreens = ({ authMode, onLogin, onSwitchToSignup, onSwitchToLogin }) => {
+    const { mutateAsync: googleAuth } = useGoogleAuth();
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            const response = await googleAuth({
+                idToken: credentialResponse.credential
+            });
+
+            // Store authentication data
+            localStorage.setItem('token', response.token);
+            localStorage.setItem('user', JSON.stringify(response.user));
+
+            // Call parent login handler
+            onLogin(response.user, response.token);
+        } catch (error) {
+            console.error('Google OAuth error:', error);
+            // Handle error appropriately
+        }
+    };
+
+    const handleGoogleError = () => {
+        console.error('Google OAuth failed');
+        // Handle error appropriately
+    };
+
+    return (
+        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id-here'}>
+            {authMode === 'login' ? (
+                <Login
+                    onLogin={onLogin}
+                    onSwitchToSignup={onSwitchToSignup}
+                    onGoogleSuccess={handleGoogleSuccess}
+                    onGoogleError={handleGoogleError}
+                />
+            ) : (
+                <Signup
+                    onSignup={onLogin}
+                    onSwitchToLogin={onSwitchToLogin}
+                    onGoogleSuccess={handleGoogleSuccess}
+                    onGoogleError={handleGoogleError}
+                />
+            )}
+        </GoogleOAuthProvider>
+    );
+};
+
 function App() {
     const [activeScreen, setActiveScreen] = useState('dashboard');
     const [mobileOpen, setMobileOpen] = useState(false); // State for mobile sidebar
@@ -52,9 +172,6 @@ function App() {
 
     // Google OAuth Client ID (you'll need to replace this with your actual client ID)
     const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id-here';
-
-    // React Query hooks
-    const { mutateAsync: googleAuth, isLoading: isGoogleLoading } = useGoogleAuth();
 
     // Check authentication status on component mount
     useEffect(() => {
@@ -105,100 +222,34 @@ function App() {
         setUser(userData);
     };
 
-    const handleGoogleSuccess = async (credentialResponse) => {
-        try {
-            const response = await googleAuth({
-                idToken: credentialResponse.credential
-            });
-
-            // Store authentication data
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('user', JSON.stringify(response.user));
-
-            // Update state
-            setIsAuthenticated(true);
-            setUser(response.user);
-        } catch (error) {
-            console.error('Google OAuth error:', error);
-            // Handle error appropriately
-        }
-    };
-
-    const handleGoogleError = () => {
-        console.error('Google OAuth failed');
-        // Handle error appropriately
-    };
-
     const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
 
     // Show login/signup if not authenticated
     if (!isAuthenticated) {
         return (
             <QueryProvider>
-                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                    {authMode === 'login' ? (
-                        <Login
-                            onLogin={handleLogin}
-                            onSwitchToSignup={() => setAuthMode('signup')}
-                            onGoogleSuccess={handleGoogleSuccess}
-                            onGoogleError={handleGoogleError}
-                        />
-                    ) : (
-                        <Signup
-                            onSignup={handleLogin}
-                            onSwitchToLogin={() => setAuthMode('login')}
-                            onGoogleSuccess={handleGoogleSuccess}
-                            onGoogleError={handleGoogleError}
-                        />
-                    )}
-                </GoogleOAuthProvider>
+                <AuthScreens
+                    authMode={authMode}
+                    onLogin={handleLogin}
+                    onSwitchToSignup={() => setAuthMode('signup')}
+                    onSwitchToLogin={() => setAuthMode('login')}
+                />
             </QueryProvider>
         );
     }
 
     return (
         <QueryProvider>
-            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                <AppContainer>
-                    <Sidebar
-                        activeScreen={activeScreen}
-                        onScreenChange={handleScreenChange}
-                        mobileOpen={mobileOpen}
-                        onMobileToggle={handleMobileToggle}
-                    />
-
-                    <MainContent isMobile={isMobile}>
-                        <AppBar
-                            pageTitle={screenTitles[activeScreen]}
-                            user={user}
-                            onLogout={handleLogout}
-                            onMobileMenuToggle={handleMobileToggle}
-                        />
-
-                        <ScreenContainer>
-                            <Screen active={activeScreen === 'dashboard'}>
-                                <Dashboard onScreenChange={handleScreenChange} />
-                            </Screen>
-
-                            <Screen active={activeScreen === 'groups'}>
-                                <Groups />
-                            </Screen>
-
-                            <Screen active={activeScreen === 'expenses'}>
-                                <Expenses />
-                            </Screen>
-
-                            <Screen active={activeScreen === 'history'}>
-                                <HistoryPage />
-                            </Screen>
-
-                            <Screen active={activeScreen === 'profile'}>
-                                <Profile onLogout={handleLogout} />
-                            </Screen>
-                        </ScreenContainer>
-                    </MainContent>
-                </AppContainer>
-            </GoogleOAuthProvider>
+            <AuthenticatedApp
+                user={user}
+                onLogout={handleLogout}
+                onScreenChange={handleScreenChange}
+                activeScreen={activeScreen}
+                mobileOpen={mobileOpen}
+                onMobileToggle={handleMobileToggle}
+                isMobile={isMobile}
+                screenTitles={screenTitles}
+            />
         </QueryProvider>
     );
 }
